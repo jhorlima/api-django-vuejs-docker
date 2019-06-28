@@ -1,0 +1,96 @@
+version: '3'
+
+volumes:
+  postgres-data:
+    driver: local
+
+  redis-data:
+    driver: local
+
+networks:
+  api-network:
+    driver: bridge
+
+services:
+
+  spa:
+    build: ./consumer-spa
+    container_name: api-spa
+    ports:
+      - 8080
+    networks:
+      - api-network
+
+  web:
+    build: ./python
+    container_name: api-drf
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./python:/app
+    ports:
+      - 9000:8000
+    depends_on:
+      - redis
+      - postgres
+    networks:
+      - api-network
+
+  redis:
+    image: redis:5.0
+#    image: redis:5.0-alpine
+    container_name: api-redis
+    command: --appendonly yes
+    volumes:
+      - redis-data:/data
+    ports:
+      - 6379
+    networks:
+      - api-network
+
+  postgres:
+    restart: always
+    image: postgres:9.6.3
+#    image: postgres:9.6.3-alpine
+    container_name: api-postgres
+    environment:
+      - POSTGRES_PASSWORD=api.12qwaszx
+      - POSTGRES_USER=usrapi
+      - POSTGRES_DB=api
+    ports:
+      - 5432
+    volumes:
+      - postgres-data:/var/lib/postgresql/data/
+#      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - api-network
+
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: api-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@niduu.com"
+      PGADMIN_DEFAULT_PASSWORD: "niduu.12qwaszx"
+    ports:
+      - 8082:80
+    depends_on:
+      - postgres
+    networks:
+      - api-network
+
+#  dbbackup:
+#    image: jmcarbo/docker-postgres-backup
+#    container_name: api-dbbackup
+#    volumes:
+#      - ./postgres/backups:/backup
+#    depends_on:
+#      - postgres
+#    environment:
+#      - DUMPPREFIX=api
+#      - POSTGRES_USER=usrapi
+#      - POSTGRES_PASSWORD=api.12qwaszx
+#      - POSTGRES_PORT=5432
+#      - POSTGRES_HOST=postgres
+#      - POSTGRES_DB=api
+#      - INIT_BACKUP
+#    networks:
+#      - api-network
